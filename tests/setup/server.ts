@@ -6,6 +6,8 @@ process.env.APP_ENV = "testing";
 process.env.APP_URL ??= "http://localhost:3000";
 process.env.DB_CONNECTION ??= "sqlite";
 process.env.DB_DATABASE ??= ":memory:";
+process.env.TOKEN_PREFIX ??= "pe_";
+process.env.TOKEN_EXPIRATION_MINUTES ??= String(60 * 24 * 90);
 process.env.TRUSTED_PROXY_HOPS ??= "1";
 
 // Every test starts from empty tables, so refuse to run against anything that
@@ -30,6 +32,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   resetConfig();
   resetRateLimits();
+  await db().deleteFrom("personal_access_tokens").execute();
+  await db().deleteFrom("users").execute();
   await db().deleteFrom("destinations").execute();
 });
 

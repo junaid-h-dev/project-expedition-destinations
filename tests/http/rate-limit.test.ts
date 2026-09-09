@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { bearerToken } from "@/auth/tokens";
 import { API_LIMIT, clientIp, hit, withRateLimitHeaders } from "@/http/rate-limit";
 import { HttpError, json } from "@/http/responses";
 
@@ -72,5 +73,20 @@ describe("clientIp", () => {
   it("ignores the header entirely when no proxy is trusted or the header is missing", () => {
     expect(clientIp(request("1.2.3.4"), 0)).toBe("unknown");
     expect(clientIp(request(), 1)).toBe("unknown");
+  });
+});
+
+describe("bearerToken", () => {
+  it("extracts the token and tolerates casing and whitespace", () => {
+    const at = (authorization?: string) =>
+      bearerToken(
+        new Request("http://localhost/api", { headers: authorization ? { authorization } : {} }),
+      );
+
+    expect(at("Bearer pe_abc")).toBe("pe_abc");
+    expect(at("bearer   pe_abc ")).toBe("pe_abc");
+    expect(at("Basic dXNlcg==")).toBeNull();
+    expect(at("Bearer")).toBeNull();
+    expect(at()).toBeNull();
   });
 });

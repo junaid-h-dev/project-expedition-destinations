@@ -1,3 +1,4 @@
+import { authorize } from "@/auth/guard";
 import { seedDestinations } from "@/db/seed/destination-seeder";
 import { toResource } from "@/destinations/serialize";
 import { apiHandler } from "@/http/api";
@@ -7,13 +8,15 @@ import { json } from "@/http/responses";
 /**
  * POST /api/v1/destinations/seed — load or refresh the seed catalogue.
  *
- * The endpoint answers 404 in production, so it is invisible there, and is held to
- * a tight per-minute throttle everywhere else. The seeder upserts inside a
- * transaction, so the call is idempotent and never truncates; rows outside the
- * catalogue are left alone. Access control follows in Section 4.
+ * Guards run in this order on purpose: environment (404 before anything else, so
+ * production reveals nothing — not even by looking a token up) → authentication
+ * (401) → ability (403) → the tight per-minute throttle. The seeder upserts inside
+ * a transaction, so the call is idempotent and never truncates; rows outside the
+ * catalogue are left alone.
  */
 export const POST = apiHandler(
   async (ctx) => {
+    authorize(ctx.principal, ["destinations:seed"]);
     ctx.limits.push(hit(SEED_LIMIT, ctx.limitKey));
 
     const seeded = await seedDestinations();
