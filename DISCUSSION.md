@@ -56,8 +56,8 @@ Testing Library.
 - `.env.example` targets the docker-compose MySQL service; `npm run setup` creates
   `.env`, migrates and builds. The SQLite path needs no Docker at all.
 - Resilience basics: `instrumentation.ts` validates the environment when the server
-  starts; `APP_ENV` fails closed (unset on a production build means production); a
-  `connectTimeout` on the MySQL pool;
+  starts; `APP_ENV` fails closed (unset on a production build means production); an
+  `error.tsx` boundary and a `not-found.tsx` page; a `connectTimeout` on the MySQL pool;
   `GET /api/health` for load balancers; and the test setup refuses to run against a
   database that does not look disposable.
 - Left out on purpose: Playwright end-to-end tests (the URL-driven design means the
@@ -125,3 +125,49 @@ Testing Library.
 - Every ordering ends with the primary key. Names are not unique — the unique key is
   (name, country) — and without a total order two rows with the same name can swap places
   between two page queries, so one is shown twice and the other never.
+
+## Section 3 — User interface
+
+- **The URL is the only state.** `page.tsx` is an async Server Component: it normalises
+  the search params, runs one paginated query through the shared repository, and renders
+  the table. Search, filters, sort, direction and page are all in the query string, so a
+  view is bookmarkable and survives a reload. Sorting and pagination are links, so they
+  go into history; search and the filter selects use `router.replace`, so a session of
+  typing does not bury the previous page behind twenty back-button presses.
+- **Normalisation, not validation, at the page boundary.** The API rejects bad input; the
+  page coerces it — `?cost=budget` or `?region=Atlantis` become "no filter", `?sort=x`
+  becomes the default, the search term is capped — so the controls always show exactly the
+  state that is applied. The page's vocabulary is short (`q`, `cost`) because people see
+  and type those URLs; the API's (`search`, `cost_level`) matches its response keys. Both
+  policies are unit tested, and the page-side helpers live in a module with no server
+  dependencies (`explorer-state.ts`) so the client bundle does not carry Zod.
+- **Typing is never overwritten by a slow response.** The search box keeps three values:
+  what is in the input, what the URL said at the last render, and what was last navigated
+  to. A render whose props match what we requested is our own navigation landing and is
+  ignored; anything else — the back button, a sort link, server normalisation — is adopted.
+  Without that distinction the box is cleared for the length of a round trip and
+  keystrokes typed in that window are lost, which is invisible on localhost and obvious on
+  a real connection. Changing a filter select carries the term that is still inside its
+  debounce window, so it is not dropped either. Sort and pagination links are rendered
+  from the state the server saw, so clicking one in the same instant as typing resolves
+  to whichever navigation lands last.
+- **Minimal client JavaScript.** `Filters` is the only Client Component: a debounced
+  search box (300 ms), two selects that apply immediately, and a clear button, all of
+  which navigate with `router.replace` inside a transition so the "Updating…" hint reflects
+  real pending work. Sortable headings and pagination are plain links that work without
+  JavaScript. The search box adopts the URL's value when it changes from elsewhere, using
+  React's derive-state-during-render pattern rather than an effect.
+- **Accessibility**: labelled controls, real links for sorting with `aria-sort`, a results
+  count and a pending hint in live regions that exist before they have anything to say,
+  visible focus rings, and a table whose horizontal scroll container is focusable and
+  labelled so it can be scrolled from the keyboard.
+- **Two empty states**, because "no rows" has two causes: filters that match nothing, with
+  a way to clear them, and a catalogue that has not been seeded yet.
+- **Formatting** with `Intl.NumberFormat` for currency and visitor counts; cost levels as
+  colour-coded badges; activities as chips.
+
+### With more time
+
+- A Playwright suite for the debounce and navigation behaviour in a real browser.
+- A details page per destination (the API already has `show`).
+- An activity filter in the UI (the repository and API support it already).
