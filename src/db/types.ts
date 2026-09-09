@@ -21,6 +21,28 @@ export interface DestinationsTable {
   updated_at: Timestamp;
 }
 
+export interface UsersTable {
+  id: Generated<number>;
+  name: string;
+  email: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface PersonalAccessTokensTable {
+  id: Generated<number>;
+  user_id: number;
+  name: string;
+  token_hash: string;
+  /** JSON-encoded string[] of abilities. */
+  abilities: ColumnType<string | string[], string, string>;
+  last_used_at: Timestamp | null;
+  expires_at: Timestamp;
+  created_at: Timestamp;
+}
+
 export interface Database {
   destinations: DestinationsTable;
+  users: UsersTable;
+  personal_access_tokens: PersonalAccessTokensTable;
 }
