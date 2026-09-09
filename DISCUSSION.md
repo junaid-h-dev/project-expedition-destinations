@@ -171,3 +171,56 @@ Testing Library.
 - A Playwright suite for the debounce and navigation behaviour in a real browser.
 - A details page per destination (the API already has `show`).
 - An activity filter in the UI (the repository and API support it already).
+
+## Section 4 — Authentication (bonus)
+
+### The model: public reads, tokens with abilities for writes
+
+The catalogue is public information — the page shows it to anyone — so putting the read
+endpoints behind authentication would add friction without protecting anything. What
+needs protecting is the ability to _change_ data; today that is the seed endpoint.
+
+**Personal access tokens with abilities**, modelled on Laravel Sanctum:
+
+- The API's consumers are machines (CI, scripts, integrations); a bearer token is the
+  simplest thing that works for them. Session auth would only suit a first-party SPA that
+  does not exist; OAuth would be justified if third parties needed delegated consent.
+- Tokens are random (`pe_` prefix for secret scanners), shown once, stored as SHA-256
+  hashes, and carry an explicit list of abilities (`TOKEN_ABILITIES`). `npm run api:token`
+  requires at least one `--ability` — a token that can do everything by default would
+  contradict the least-privilege story — and refuses an expiry beyond
+  `TOKEN_EXPIRATION_MINUTES` rather than printing a lifetime that will not be honoured.
+- **Defense in depth on the seed endpoint**, in this order: environment guard (404, so
+  production reveals nothing) → authentication (401) → ability (403) → 5-per-minute
+  throttle. Rate limiting keys on the token holder when a valid token is present and on
+  the client IP otherwise, so a shared office IP does not throttle a legitimate integration.
+- Users exist only to own tokens; there is no password login, and the local seeder only
+  creates `admin@example.com` outside production.
+
+Worth stating plainly: the only endpoint this protects today is one that answers 404 in
+production, so the token layer is exercised in development and CI rather than in
+production, and there is deliberately no way to create the first user over HTTP. It is
+built now because the endpoints that will need it — the write operations under "With more
+time" — should not each invent their own access control, and because the assignment asks
+what protection the API needs rather than what it currently uses.
+
+### What I left out
+
+- Token management over HTTP (issue/list/revoke). Issuing credentials from the CLI keeps
+  the bootstrap problem out of the API; endpoints are a natural next step once there is a
+  notion of accounts.
+- Roles or policies. With one protected action, abilities are enough.
+
+## Closing notes
+
+Every section's quality gate (`npm run check`: ESLint, Prettier, strict TypeScript,
+the Vitest suites) is green, the production build succeeds, and CI runs the suite on both
+SQLite and MySQL 8.
+
+Questions for the team:
+
+- Is the API meant for third parties (which would argue for an OpenAPI document and a
+  compatibility policy) or only for internal tooling?
+- Should activities become a first-class entity with their own management UI?
+- What is the deployment target? Single Node process (the in-memory limiter is fine) or
+  several instances (a shared store is needed)?

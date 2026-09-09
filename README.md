@@ -50,7 +50,9 @@ the same migrations run on both engines.
 | `npm run typecheck`    | `next typegen` + `tsc --noEmit` (strict TypeScript)           |
 | `npm test`             | Vitest: server suites on SQLite in-memory, UI suites in jsdom |
 | `npm run db:migrate`   | Apply pending migrations                                      |
-| `npm run db:seed`      | Upsert the destination catalogue (safe to re-run)             |
+| `npm run db:seed`      | Upsert the catalogue (and a local admin outside production)   |
+| `npm run api:token`    | Issue an API token (see Authentication)                       |
+| `npm run tokens:prune` | Delete tokens that expired more than a day ago                |
 
 Tests run against an in-memory SQLite database by default. To run them against MySQL
 locally (as CI does), export `DB_CONNECTION=mysql` and the `DB_*` credentials of a
@@ -91,11 +93,11 @@ trusted proxy). Every response reports the budget in `X-RateLimit-Limit`,
 `X-RateLimit-Remaining` and `X-RateLimit-Reset`, and is marked `Cache-Control: no-store`
 so a shared cache cannot serve one client's listing — or its 429 — to another.
 
-| Method | Path                        | Description                                         |
-| ------ | --------------------------- | --------------------------------------------------- |
-| GET    | `/api/v1/destinations`      | Paginated catalogue with filtering and sorting      |
-| GET    | `/api/v1/destinations/{id}` | A single destination                                |
-| POST   | `/api/v1/destinations/seed` | Load/refresh the seed catalogue (not in production) |
+| Method | Path                        | Description                                                |
+| ------ | --------------------------- | ---------------------------------------------------------- |
+| GET    | `/api/v1/destinations`      | Paginated catalogue with filtering and sorting             |
+| GET    | `/api/v1/destinations/{id}` | A single destination                                       |
+| POST   | `/api/v1/destinations/seed` | Load/refresh the seed catalogue (token, not in production) |
 
 ### Listing parameters
 
@@ -121,7 +123,7 @@ element-wise match against the JSON array.
 ```bash
 curl 'http://localhost:3000/api/v1/destinations?region=Europe&sort=average_daily_budget&direction=desc&per_page=5'
 curl http://localhost:3000/api/v1/destinations/1
-curl -X POST http://localhost:3000/api/v1/destinations/seed
+curl -X POST -H "Authorization: Bearer <token>" http://localhost:3000/api/v1/destinations/seed
 ```
 
 Responses use a `data` / `links` / `meta` envelope:
@@ -149,5 +151,30 @@ Responses use a `data` / `links` / `meta` envelope:
 
 The seed endpoint upserts the catalogue from `src/db/seed/catalogue.ts` and returns the
 catalogue rows; it is idempotent, throttled to 5 calls per minute, and answers `404`
-when `APP_ENV=production`, so production does not reveal that the route exists (seed
-production with `npm run db:seed` during deployment instead).
+when `APP_ENV=production` — before authentication, so production does not reveal that
+the route exists (seed production with `npm run db:seed` during deployment instead).
+
+### Authentication
+
+Reading the catalogue is public. Administrative endpoints (currently only the seed
+endpoint) require a personal access token carrying the matching ability, sent as a
+bearer token:
+
+| Endpoint                         | Required ability    |
+| -------------------------------- | ------------------- |
+| `POST /api/v1/destinations/seed` | `destinations:seed` |
+
+Issue a token for an existing user from the command line. At least one `--ability`
+is required (tokens carry the least privilege they need). Outside production the
+seeder creates `admin@example.com` for this purpose:
+
+```bash
+npm run api:token -- --email=admin@example.com --ability=destinations:seed --name=ci --expires-in-days=7
+curl -X POST -H "Authorization: Bearer <token>" http://localhost:3000/api/v1/destinations/seed
+```
+
+Tokens are shown once, stored as SHA-256 hashes, expire (30 days by default;
+`TOKEN_EXPIRATION_MINUTES` caps every token at 90 days) and are prefixed with `pe_` so
+secret scanners can recognise them. Missing, invalid or expired tokens get `401`; a
+token without the ability gets `403`. Run `npm run tokens:prune` from cron to remove
+expired tokens.
