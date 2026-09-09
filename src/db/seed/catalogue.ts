@@ -1,6 +1,11 @@
-import { NextResponse } from "next/server";
+import type { DestinationAttributes } from "@/domain/destination";
 
-const HARDCODED_DESTINATIONS = [
+/**
+ * The single source of truth for the seeded destinations. A destination is
+ * identified by its name + country, so editing a row here and re-seeding updates
+ * it in place.
+ */
+export const catalogue: readonly DestinationAttributes[] = [
   {
     name: "Machu Picchu",
     country: "Peru",
@@ -8,7 +13,7 @@ const HARDCODED_DESTINATIONS = [
     costLevel: "Moderate",
     activities: ["Hiking & Trekking", "Cultural Tours", "Photography", "Historical Sightseeing"],
     averageDailyBudget: 150,
-    annualVisitors: 1500000,
+    annualVisitors: 1_500_000,
   },
   {
     name: "Santorini",
@@ -17,7 +22,7 @@ const HARDCODED_DESTINATIONS = [
     costLevel: "Premium",
     activities: ["Beach & Relaxation", "Food & Wine Tasting", "Photography", "Sailing & Boating"],
     averageDailyBudget: 250,
-    annualVisitors: 2000000,
+    annualVisitors: 2_000_000,
   },
   {
     name: "Kyoto",
@@ -26,7 +31,7 @@ const HARDCODED_DESTINATIONS = [
     costLevel: "Moderate",
     activities: ["Cultural Tours", "Historical Sightseeing", "Food & Wine Tasting", "Photography"],
     averageDailyBudget: 180,
-    annualVisitors: 5300000,
+    annualVisitors: 5_300_000,
   },
   {
     name: "Serengeti National Park",
@@ -35,7 +40,7 @@ const HARDCODED_DESTINATIONS = [
     costLevel: "Premium",
     activities: ["Wildlife Safari", "Photography", "Hot Air Ballooning", "Camping"],
     averageDailyBudget: 300,
-    annualVisitors: 350000,
+    annualVisitors: 350_000,
   },
   {
     name: "Queenstown",
@@ -44,7 +49,7 @@ const HARDCODED_DESTINATIONS = [
     costLevel: "Premium",
     activities: ["Adventure Sports", "Skiing & Snowboarding", "Hiking & Trekking", "Paragliding"],
     averageDailyBudget: 200,
-    annualVisitors: 3000000,
+    annualVisitors: 3_000_000,
   },
   {
     name: "Reykjavik",
@@ -53,7 +58,7 @@ const HARDCODED_DESTINATIONS = [
     costLevel: "Premium",
     activities: ["Hiking & Trekking", "Hot Air Ballooning", "Photography", "Volcano Tours"],
     averageDailyBudget: 280,
-    annualVisitors: 2300000,
+    annualVisitors: 2_300_000,
   },
   {
     name: "Cusco",
@@ -67,7 +72,7 @@ const HARDCODED_DESTINATIONS = [
       "Food & Wine Tasting",
     ],
     averageDailyBudget: 60,
-    annualVisitors: 2700000,
+    annualVisitors: 2_700_000,
   },
   {
     name: "Bali",
@@ -76,7 +81,7 @@ const HARDCODED_DESTINATIONS = [
     costLevel: "Budget",
     activities: ["Beach & Relaxation", "Surfing", "Yoga & Wellness Retreats", "Cultural Tours"],
     averageDailyBudget: 70,
-    annualVisitors: 6200000,
+    annualVisitors: 6_200_000,
   },
   {
     name: "Banff National Park",
@@ -90,7 +95,7 @@ const HARDCODED_DESTINATIONS = [
       "Wildlife Safari",
     ],
     averageDailyBudget: 180,
-    annualVisitors: 4000000,
+    annualVisitors: 4_000_000,
   },
   {
     name: "Patagonia",
@@ -99,7 +104,7 @@ const HARDCODED_DESTINATIONS = [
     costLevel: "Premium",
     activities: ["Hiking & Trekking", "Rock Climbing", "Photography", "Camping"],
     averageDailyBudget: 220,
-    annualVisitors: 400000,
+    annualVisitors: 400_000,
   },
   {
     name: "Marrakech",
@@ -113,7 +118,7 @@ const HARDCODED_DESTINATIONS = [
       "Nightlife & Entertainment",
     ],
     averageDailyBudget: 55,
-    annualVisitors: 3000000,
+    annualVisitors: 3_000_000,
   },
   {
     name: "Dubrovnik",
@@ -127,7 +132,7 @@ const HARDCODED_DESTINATIONS = [
       "Food & Wine Tasting",
     ],
     averageDailyBudget: 160,
-    annualVisitors: 1400000,
+    annualVisitors: 1_400_000,
   },
   {
     name: "Cancun",
@@ -141,7 +146,7 @@ const HARDCODED_DESTINATIONS = [
       "Cultural Tours",
     ],
     averageDailyBudget: 140,
-    annualVisitors: 8000000,
+    annualVisitors: 8_000_000,
   },
   {
     name: "Phuket",
@@ -155,7 +160,7 @@ const HARDCODED_DESTINATIONS = [
       "Nightlife & Entertainment",
     ],
     averageDailyBudget: 80,
-    annualVisitors: 9500000,
+    annualVisitors: 9_500_000,
   },
   {
     name: "Swiss Alps",
@@ -164,13 +169,6 @@ const HARDCODED_DESTINATIONS = [
     costLevel: "Luxury",
     activities: ["Skiing & Snowboarding", "Hiking & Trekking", "Rock Climbing", "Photography"],
     averageDailyBudget: 400,
-    annualVisitors: 1200000,
+    annualVisitors: 1_200_000,
   },
 ];
-
-export async function GET() {
-  // Uncomment this to use the database
-  // const [rows] = await pool().query("select * from destinations");
-  // return NextResponse.json({ data: rows });
-  return NextResponse.json({ data: HARDCODED_DESTINATIONS });
-}

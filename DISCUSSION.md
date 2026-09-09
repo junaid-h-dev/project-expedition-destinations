@@ -45,20 +45,83 @@ Testing Library.
 
 - `npm run check` is the single local gate: ESLint (Next.js core-web-vitals + React hooks
   rules, formatting delegated to Prettier), Prettier, `next typegen && tsc --noEmit` under
-  `strict`, and Vitest. CI runs the same steps plus `npm audit`, the production build
-  and the test suite.
+  `strict`, and Vitest. CI runs the same steps plus `npm audit`, the production build, and
+  the test suite twice — on SQLite for speed and on MySQL 8 for parity.
 - A validated, typed `config()` reads the environment once so a typo in `.env` fails at
   boot with a clear message. Three values have development defaults that would be wrong
   to inherit in production — `APP_URL` (it ends up in the API's pagination links),
   `DB_CONNECTION` (an unset one would serve an empty SQLite file) and `TRUSTED_PROXY_HOPS`
   (trusting an `X-Forwarded-For` that no proxy wrote hands clients their own rate-limit
   bucket) — so `APP_ENV=production` requires them explicitly rather than guessing.
-- `.env.example` documents every variable the application reads; the database it
-  points at arrives in Section 2.
-- Resilience basics so far: `instrumentation.ts` validates the environment when the
-  server starts, and `APP_ENV` fails closed (unset on a production build means
-  production).
-- Left out on purpose: Playwright end-to-end tests (a browser suite is worth adding
-  once the UI is rebuilt), an application Dockerfile (deploy target unknown), Husky hooks (CI enforces
+- `.env.example` targets the docker-compose MySQL service; `npm run setup` creates
+  `.env`, migrates and builds. The SQLite path needs no Docker at all.
+- Resilience basics: `instrumentation.ts` validates the environment when the server
+  starts; `APP_ENV` fails closed (unset on a production build means production); a
+  `connectTimeout` on the MySQL pool;
+  `GET /api/health` for load balancers; and the test setup refuses to run against a
+  database that does not look disposable.
+- Left out on purpose: Playwright end-to-end tests (the URL-driven design means the
+  behaviour is covered by handler and component tests; a browser suite is the next
+  addition), an application Dockerfile (deploy target unknown), Husky hooks (CI enforces
   the gate; `npm run check` is the documented pre-push step), and `cacheComponents` (the
   page is request-driven by nature; caching is a later optimisation).
+
+## Section 2 — Database & API
+
+- **Migrations in code** (`src/db/migrations`, applied through Kysely's `Migrator`) rather
+  than discovered from the file system, so they run identically from the CLI, the test
+  setup and a bundled server. The JSON column uses MySQL's expression default (`('[]')`)
+  and a `text` column on SQLite; indexes on the two filter columns; a unique key on
+  `(name, country)` that the idempotent seeder relies on.
+- **Timestamps** are written as `YYYY-MM-DD HH:MM:SS` UTC — the one format both engines
+  accept — and normalised to `Date` when read, because mysql2 returns `Date` objects and
+  SQLite returns text. The same helper decodes JSON columns that MySQL already parses.
+- **Search** lower-cases both sides explicitly (`LOWER(col) LIKE ?`) and escapes `%`/`_`
+  with `!` as the escape character. MySQL compares a JSON column as a binary string, so a
+  naive `LIKE` against `activities` would be case-sensitive in production and not in
+  tests; lower-casing makes the engines agree. `!` needs no engine-specific quoting.
+- **Cost level sorts by tier** through a `CASE` expression whose values are bound
+  parameters; **sort keys are an allow-list** (`DESTINATION_SORTS`) so user input never
+  reaches `orderBy` unchecked; **name is the tie-breaker** so pages are stable.
+- **Activity filter** is the one dialect branch: `JSON_CONTAINS` on MySQL, `json_each` on
+  SQLite. It is isolated in the repository and covered by the test that CI runs on both.
+- **API contract**: `/api/v1` prefix, snake_case keys, native JSON types, ISO-8601 dates,
+  a `data` / `links` / `meta` envelope with the active filters kept in the links, `422`
+  with per-field errors for invalid input, a JSON 404 for unknown API routes (a catch-all
+  route handler, since Next.js would otherwise serve its HTML not-found page), and the
+  conventional `X-RateLimit-*` headers. Every API response is `Cache-Control: no-store`:
+  Next.js leaves dynamic route-handler responses without a cache header of their own, and
+  a default-configured cache in front of the app would happily hand one client's listing,
+  rate-limit budget or 429 to another.
+- **Rate limiting** is a fixed window in an in-process `Map` with `Retry-After` on 429,
+  keyed by token holder when a bearer token is sent and otherwise by client address.
+  The address comes from `X-Forwarded-For`, but only the entry appended by the
+  `TRUSTED_PROXY_HOPS` trusted proxies counts — anything a client puts in the header
+  itself is ignored, otherwise the limit could be bypassed with a random header per
+  request. Expired windows are swept so the store cannot grow without bound. That is
+  the right size for one Node process and deliberately simple; behind a load balancer it
+  should be backed by Redis, and the limiter's interface would not change.
+- **One principal lookup per request.** The API pipeline resolves the bearer token once
+  (only when one is sent) and hands the result to the handler; the seed endpoint's
+  environment guard runs before that lookup, so in production a token is not even
+  looked up before the 404. That lookup necessarily precedes rate limiting — the limit is
+  keyed by whoever the token belongs to — so a credential that cannot be one of ours
+  (wrong prefix or wrong shape) is rejected without a query.
+- **The seed endpoint moved** from the brief's `POST /api/seed` to
+  `POST /api/v1/destinations/seed`: it belongs under the versioned prefix with the
+  resource it affects, and the README documents the new path.
+- **The seed endpoint** runs the idempotent, transactional seeder and returns the rows it
+  seeded. It answers 404 in production. "Production" is `APP_ENV`, kept separate from
+  `NODE_ENV` so a production _build_ can be run locally as `local`; when `APP_ENV` is not
+  set on a production build it defaults to `production`, i.e. it fails closed.
+
+### Trade-offs
+
+- The upsert is atomic on both engines (`ON DUPLICATE KEY UPDATE` / `ON CONFLICT`), which
+  costs a second small dialect branch but means two concurrent seed calls cannot race a
+  select-then-insert into a unique-key violation.
+- Timestamps as strings cost a small normalisation layer; storing epoch integers would be
+  simpler but unreadable in the database.
+- Every ordering ends with the primary key. Names are not unique — the unique key is
+  (name, country) — and without a total order two rows with the same name can swap places
+  between two page queries, so one is shown twice and the other never.

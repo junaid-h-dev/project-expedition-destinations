@@ -1,25 +1,22 @@
-import { pool } from "@/lib/db";
+import "./env";
+import { closeDb } from "@/db/client";
+import { migrateToLatest } from "@/db/migrate";
 
-async function main() {
-  const connection = pool();
+async function main(): Promise<void> {
+  const { results } = await migrateToLatest();
 
-  await connection.query(`
-    create table if not exists destinations (
-      id bigint unsigned not null auto_increment primary key,
-      name varchar(255) not null,
-      country varchar(255) not null,
-      region varchar(255) not null,
-      cost_level varchar(255) not null,
-      activities json not null,
-      average_daily_budget int not null,
-      annual_visitors int not null,
-      created_at timestamp null,
-      updated_at timestamp null
-    )
-  `);
+  if (!results || results.length === 0) {
+    console.log("Nothing to migrate.");
+  }
 
-  console.log("Migrated");
-  await connection.end();
+  for (const result of results ?? []) {
+    console.log(`${result.status === "Success" ? "DONE" : "FAIL"}  ${result.migrationName}`);
+  }
 }
 
-main();
+main()
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => closeDb());
