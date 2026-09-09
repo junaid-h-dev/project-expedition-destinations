@@ -1,14 +1,17 @@
 import type { ZodError } from "zod";
-import { ensureNotProduction } from "@/auth/guard";
+import { ensureNotProduction, type Principal, resolvePrincipal } from "@/auth/guard";
+import { bearerToken } from "@/auth/tokens";
 import { API_LIMIT, clientIp, hit, type RateLimitResult, withRateLimitHeaders } from "./rate-limit";
 import { handleErrors, HttpError, validationError } from "./responses";
 
 export interface ApiContext {
   request: Request;
   url: URL;
+  /** The token holder, resolved at most once per request; null when anonymous. */
+  principal: Principal | null;
   /** Rate limits consumed so far; their headers are added to the response. */
   limits: RateLimitResult[];
-  /** Throttle key: the client address reported by the trusted proxy. */
+  /** Throttle key: the token holder when a valid bearer token is present, else the IP. */
   limitKey: string;
 }
 
@@ -19,8 +22,9 @@ export interface ApiHandlerOptions {
 
 /**
  * Wraps a route handler with the behaviour every `/api/*` endpoint shares: the
- * environment guard when requested, the 60-per-minute limit, JSON error responses,
- * and rate-limit headers on the way out.
+ * environment guard when requested, a single principal lookup (only when a bearer
+ * token was sent), the 60-per-minute limit, JSON error responses, and rate-limit
+ * headers on the way out.
  */
 export function apiHandler<TContext = unknown>(
   run: (ctx: ApiContext, routeContext: TContext) => Promise<Response>,
@@ -32,11 +36,13 @@ export function apiHandler<TContext = unknown>(
         ensureNotProduction();
       }
 
+      const principal = bearerToken(request) ? await resolvePrincipal(request) : null;
       const ctx: ApiContext = {
         request,
         url: new URL(request.url),
+        principal,
         limits: [],
-        limitKey: `ip:${clientIp(request)}`,
+        limitKey: principal ? `user:${principal.user.id}` : `ip:${clientIp(request)}`,
       };
 
       try {
