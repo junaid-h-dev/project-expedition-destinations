@@ -72,7 +72,12 @@ const HARDCODED_DESTINATIONS: Destination[] = [
     country: "Peru",
     region: "South America",
     cost_level: "Budget",
-    activities: ["Hiking & Trekking", "Cultural Tours", "Historical Sightseeing", "Food & Wine Tasting"],
+    activities: [
+      "Hiking & Trekking",
+      "Cultural Tours",
+      "Historical Sightseeing",
+      "Food & Wine Tasting",
+    ],
     average_daily_budget: 60,
     annual_visitors: 2700000,
   },
@@ -90,7 +95,12 @@ const HARDCODED_DESTINATIONS: Destination[] = [
     country: "Canada",
     region: "North America",
     cost_level: "Moderate",
-    activities: ["Hiking & Trekking", "Skiing & Snowboarding", "Kayaking & Canoeing", "Wildlife Safari"],
+    activities: [
+      "Hiking & Trekking",
+      "Skiing & Snowboarding",
+      "Kayaking & Canoeing",
+      "Wildlife Safari",
+    ],
     average_daily_budget: 180,
     annual_visitors: 4000000,
   },
@@ -108,7 +118,12 @@ const HARDCODED_DESTINATIONS: Destination[] = [
     country: "Morocco",
     region: "Africa",
     cost_level: "Budget",
-    activities: ["Cultural Tours", "Food & Wine Tasting", "Historical Sightseeing", "Nightlife & Entertainment"],
+    activities: [
+      "Cultural Tours",
+      "Food & Wine Tasting",
+      "Historical Sightseeing",
+      "Nightlife & Entertainment",
+    ],
     average_daily_budget: 55,
     annual_visitors: 3000000,
   },
@@ -117,7 +132,12 @@ const HARDCODED_DESTINATIONS: Destination[] = [
     country: "Croatia",
     region: "Europe",
     cost_level: "Moderate",
-    activities: ["Historical Sightseeing", "Beach & Relaxation", "Kayaking & Canoeing", "Food & Wine Tasting"],
+    activities: [
+      "Historical Sightseeing",
+      "Beach & Relaxation",
+      "Kayaking & Canoeing",
+      "Food & Wine Tasting",
+    ],
     average_daily_budget: 160,
     annual_visitors: 1400000,
   },
@@ -126,7 +146,12 @@ const HARDCODED_DESTINATIONS: Destination[] = [
     country: "Mexico",
     region: "North America",
     cost_level: "Moderate",
-    activities: ["Beach & Relaxation", "Scuba Diving & Snorkeling", "Nightlife & Entertainment", "Cultural Tours"],
+    activities: [
+      "Beach & Relaxation",
+      "Scuba Diving & Snorkeling",
+      "Nightlife & Entertainment",
+      "Cultural Tours",
+    ],
     average_daily_budget: 140,
     annual_visitors: 8000000,
   },
@@ -135,7 +160,12 @@ const HARDCODED_DESTINATIONS: Destination[] = [
     country: "Thailand",
     region: "Asia",
     cost_level: "Budget",
-    activities: ["Beach & Relaxation", "Scuba Diving & Snorkeling", "Food & Wine Tasting", "Nightlife & Entertainment"],
+    activities: [
+      "Beach & Relaxation",
+      "Scuba Diving & Snorkeling",
+      "Food & Wine Tasting",
+      "Nightlife & Entertainment",
+    ],
     average_daily_budget: 80,
     annual_visitors: 9500000,
   },
@@ -161,7 +191,8 @@ export default function DestinationExplorer() {
   //     });
   // }, []);
   const [destinations] = useState<Destination[]>(HARDCODED_DESTINATIONS);
-  const [filteredDestinations, setFilteredDestinations] = useState<Destination[]>(HARDCODED_DESTINATIONS);
+  const [filteredDestinations, setFilteredDestinations] =
+    useState<Destination[]>(HARDCODED_DESTINATIONS);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
@@ -180,8 +211,8 @@ export default function DestinationExplorer() {
           destination.region.includes(searchTerm) ||
           destination.cost_level.includes(searchTerm) ||
           JSON.stringify(destination.activities).includes(searchTerm) ||
-          String(destination.average_daily_budget).includes(searchTerm)
-      )
+          String(destination.average_daily_budget).includes(searchTerm),
+      ),
     );
   }
 
@@ -240,13 +271,25 @@ export default function DestinationExplorer() {
         <table>
           <thead>
             <tr>
-              <th onClick={() => sort("name")} style={{ cursor: "pointer" }}>Name</th>
-              <th onClick={() => sort("country")} style={{ cursor: "pointer" }}>Country</th>
-              <th onClick={() => sort("region")} style={{ cursor: "pointer" }}>Region</th>
-              <th onClick={() => sort("cost_level")} style={{ cursor: "pointer" }}>Cost Level</th>
+              <th onClick={() => sort("name")} style={{ cursor: "pointer" }}>
+                Name
+              </th>
+              <th onClick={() => sort("country")} style={{ cursor: "pointer" }}>
+                Country
+              </th>
+              <th onClick={() => sort("region")} style={{ cursor: "pointer" }}>
+                Region
+              </th>
+              <th onClick={() => sort("cost_level")} style={{ cursor: "pointer" }}>
+                Cost Level
+              </th>
               <th>Activities</th>
-              <th onClick={() => sort("average_daily_budget")} style={{ cursor: "pointer" }}>Avg. Daily Budget</th>
-              <th onClick={() => sort("annual_visitors")} style={{ cursor: "pointer" }}>Annual Visitors</th>
+              <th onClick={() => sort("average_daily_budget")} style={{ cursor: "pointer" }}>
+                Avg. Daily Budget
+              </th>
+              <th onClick={() => sort("annual_visitors")} style={{ cursor: "pointer" }}>
+                Annual Visitors
+              </th>
             </tr>
           </thead>
           <tbody>

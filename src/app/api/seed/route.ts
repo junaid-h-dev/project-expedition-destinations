@@ -20,7 +20,7 @@ export async function POST() {
         JSON.stringify(destination.activities),
         destination.averageDailyBudget,
         destination.annualVisitors,
-      ]
+      ],
     );
   }
 
