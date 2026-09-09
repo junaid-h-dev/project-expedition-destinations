@@ -1,4 +1,5 @@
 import type { ZodError } from "zod";
+import { ensureNotProduction } from "@/auth/guard";
 import { API_LIMIT, clientIp, hit, type RateLimitResult, withRateLimitHeaders } from "./rate-limit";
 import { handleErrors, HttpError, validationError } from "./responses";
 
@@ -11,15 +12,26 @@ export interface ApiContext {
   limitKey: string;
 }
 
+export interface ApiHandlerOptions {
+  /** Answer 404 in production before doing anything else (development-only endpoints). */
+  notInProduction?: boolean;
+}
+
 /**
  * Wraps a route handler with the behaviour every `/api/*` endpoint shares: the
- * 60-per-minute limit, JSON error responses, and rate-limit headers on the way out.
+ * environment guard when requested, the 60-per-minute limit, JSON error responses,
+ * and rate-limit headers on the way out.
  */
 export function apiHandler<TContext = unknown>(
   run: (ctx: ApiContext, routeContext: TContext) => Promise<Response>,
+  options: ApiHandlerOptions = {},
 ) {
   return (request: Request, routeContext?: TContext): Promise<Response> =>
     handleErrors(async () => {
+      if (options.notInProduction) {
+        ensureNotProduction();
+      }
+
       const ctx: ApiContext = {
         request,
         url: new URL(request.url),
