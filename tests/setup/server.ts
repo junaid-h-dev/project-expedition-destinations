@@ -20,6 +20,7 @@ if (database !== ":memory:" && !/(_test|\.test\.sqlite)$/.test(database)) {
 
 const { closeDb, db } = await import("@/db/client");
 const { migrateToLatest } = await import("@/db/migrate");
+const { resetRateLimits } = await import("@/http/rate-limit");
 const { resetConfig } = await import("@/config");
 
 beforeAll(async () => {
@@ -28,6 +29,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   resetConfig();
+  resetRateLimits();
   await db().deleteFrom("destinations").execute();
 });
 
