@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { catalogue } from "@/db/seed/catalogue";
+import { seedDestinations } from "@/db/seed/destination-seeder";
 import { db } from "@/db/client";
-import type { DestinationAttributes } from "@/domain/destination";
 import {
   type DestinationListQuery,
   findDestination,
@@ -181,20 +182,38 @@ describe("destination repository", () => {
   });
 
   it("upserts by name and country", async () => {
-    const attributes: DestinationAttributes = {
-      name: "Kyoto",
-      country: "Japan",
-      region: "Asia",
-      costLevel: "Moderate",
-      activities: ["Cultural Tours"],
-      averageDailyBudget: 180,
-      annualVisitors: 5_300_000,
-    };
-
-    const first = await upsertDestination(attributes);
-    const second = await upsertDestination({ ...attributes, averageDailyBudget: 999 });
+    const first = await upsertDestination(catalogue[0]);
+    const second = await upsertDestination({ ...catalogue[0], averageDailyBudget: 999 });
 
     expect(second.id).toBe(first.id);
     expect(second.averageDailyBudget).toBe(999);
+  });
+});
+
+describe("catalogue seeder", () => {
+  it("loads the catalogue and is idempotent", async () => {
+    await createDestination({ name: "Custom Place", country: "Nowhere" });
+
+    const first = await seedDestinations();
+    await db()
+      .updateTable("destinations")
+      .set({ average_daily_budget: 999 })
+      .where("name", "=", "Bali")
+      .execute();
+    const second = await seedDestinations();
+
+    expect(first).toHaveLength(catalogue.length);
+    expect(second).toHaveLength(catalogue.length);
+    expect((await listDestinations(query({ perPage: 100 }))).total).toBe(catalogue.length + 1);
+    expect((await names({ search: "bali" })).length).toBe(1);
+
+    const bali = second.find((destination) => destination.name === "Bali");
+    expect(bali?.averageDailyBudget).toBe(70);
+  });
+
+  it("has unique name + country pairs", () => {
+    const keys = catalogue.map((row) => `${row.name}|${row.country}`);
+
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
