@@ -1,6 +1,9 @@
 # dependencies
 /node_modules
 
+# testing
+/coverage
+
 # next.js
 /.next/
 /out/
@@ -9,6 +12,9 @@
 .env
 .env.*
 !.env.example
+
+# local database
+/database/*.sqlite*
 
 # misc
 .DS_Store
